@@ -61,10 +61,10 @@ public class Program
         await client.LoginAsync(TokenType.Bot, token);
         await client.StartAsync();
 
-        await Task.Delay(-1);
-
         client.Ready += Client_Ready;
         client.SlashCommandExecuted += SlashCommandHandler;
+
+        await Task.Delay(-1);
     }
 
     public async Task Client_Ready()
