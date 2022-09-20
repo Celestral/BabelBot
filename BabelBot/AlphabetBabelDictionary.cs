@@ -14,8 +14,17 @@ namespace BabelBot
         {
             for (int i = 1; i <= 26; i++)
             {
-                //alphaBabelDictionary.Add()
+                alphaBabelDictionary.Add((char)(i+96), "babel" + i);
             }
+            alphaBabelDictionary.Add(',', "babel27");
+            alphaBabelDictionary.Add('?', "babel28");
+            alphaBabelDictionary.Add(';', "babel29");
+            alphaBabelDictionary.Add('.', "babel30");
+            alphaBabelDictionary.Add(':', "babel31");
+            alphaBabelDictionary.Add('!', "babel32");
+            alphaBabelDictionary.Add('\"', "babel33");
+            alphaBabelDictionary.Add('\'', "babel34");
+
         }
     }
 }
