@@ -14,21 +14,28 @@ using System.Globalization;
 
 public class Program
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ulong _WeAbove = 971028448569073664;
+    private readonly ulong _AltariRole = 1001126450646237295;
+
+    private readonly ulong _BTS = 1021834513329946716;
+    private readonly ulong _BTSAltariRole = 1022552879418060863;
+    private readonly ulong _CTS = 1004490166288797768;
+
     DiscordSocketClient client;
 
     public Program()
     {
-        _serviceProvider = CreateProvider();
+        //_serviceProvider = CreateProvider();
     }
 
     static void Main(string[] args) => new Program().RunAsync(args).GetAwaiter().GetResult();
 
     static IServiceProvider CreateProvider()
     {
+
         var config = new DiscordSocketConfig()
         {
-            GatewayIntents = GatewayIntents.AllUnprivileged
+            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers | GatewayIntents.GuildPresences
         };
 
         var xConfig = new InteractionServiceConfig()
@@ -56,7 +63,12 @@ public class Program
 
     async Task RunAsync(string[] args)
     {
-        client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
+        var config = new DiscordSocketConfig()
+        {
+            GatewayIntents = GatewayIntents.All
+        };
+
+        client = new DiscordSocketClient(config);
 
         client.Log += async (msg) =>
         {
@@ -71,6 +83,7 @@ public class Program
 
         client.Ready += Client_Ready;
         client.SlashCommandExecuted += SlashCommandHandler;
+        client.ButtonExecuted += ButtonHandler;
 
         await Task.Delay(-1);
     }
@@ -92,11 +105,17 @@ public class Program
         .WithDescription("Decrypt a message to the roman alphabet")
         .AddOption("message", ApplicationCommandOptionType.String, "The message you want to decrypt", isRequired: true);
 
+        var decryptTestCommand = new SlashCommandBuilder()
+        .WithName("decrypttestcommand")
+        .WithDescription("Decrypt a message to the roman alphabet")
+        .AddOption("message", ApplicationCommandOptionType.String, "The message you want to decrypt", isRequired: true);
+
 
         try
         {
             await client.CreateGlobalApplicationCommandAsync(encryptCommand.Build());
             await client.CreateGlobalApplicationCommandAsync(decryptCommand.Build());
+            await client.CreateGlobalApplicationCommandAsync(decryptTestCommand.Build());
         }
         catch(ApplicationCommandException e)
         {
@@ -104,6 +123,53 @@ public class Program
             Console.WriteLine(json);
         }
     }
+
+    public async Task ButtonHandler(SocketMessageComponent component)
+    {
+        // We can now check for our custom id
+        switch (component.Data.CustomId)
+        {
+            case "decrypt-button":
+                // Lets respond by sending a message saying they clicked the button
+                await DecryptMessageThroughButton(component);
+                break;
+        }
+    }
+
+    private async Task DecryptMessageThroughButton(SocketMessageComponent component)
+    {
+        var guild = client.GetGuild(_BTS);
+        var member = guild.Users.FirstOrDefault(x => x.Id == component.User.Id);
+
+        if (member != null && member.Roles.FirstOrDefault(x => x.Id == _BTSAltariRole) != null)
+        {
+            var message = component.Message.Embeds.FirstOrDefault().Description;
+
+            var decrypted = DecryptFromBabel(message);
+
+            var embedBuiler = new EmbedBuilder()
+                .WithTitle("You decrypted the following message:")
+                .WithDescription(decrypted)
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            // Now, Let's respond with the embed.
+            await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+            //await command.RespondAsync(encrypted);
+        }
+
+        else
+        {
+            var embedBuiler = new EmbedBuilder()
+                .WithTitle("You cannot currently decrypt this message.")
+                .WithDescription("Only Altari can auto-decrypt Babel script")
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+        }
+    }
+
     private async Task SlashCommandHandler(SocketSlashCommand command)
     {
         switch (command.Data.Name)
@@ -113,6 +179,9 @@ public class Program
                 break;
             case "decrypt":
                 await DecryptMessage(command);
+                break;
+            case "decrypttestcommand":
+                await DecryptTestMessage(command);
                 break;
         }
     }
@@ -124,6 +193,9 @@ public class Program
 
         var encrypted = EncryptToBabel(message);
 
+        var builder = new ComponentBuilder()
+        .WithButton("Decrypt", "decrypt-button");
+
         var embedBuiler = new EmbedBuilder()
             .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
             .WithTitle(command.User.Username.ToString() + " has left an encrypted message:")
@@ -132,7 +204,8 @@ public class Program
             .WithCurrentTimestamp();
 
         // Now, Let's respond with the embed.
-        await command.RespondAsync(embed: embedBuiler.Build());
+        await command.RespondAsync(embed: embedBuiler.Build(), components: builder.Build());
+        //await command.RespondAsync(encrypted, components: builder.Build());
         //await command.RespondAsync(encrypted);
     }
 
@@ -153,6 +226,52 @@ public class Program
         // Now, Let's respond with the embed.
         await command.RespondAsync(embed: embedBuiler.Build());
         //await command.RespondAsync(encrypted);
+    }
+
+    private async Task DecryptTestMessage(SocketSlashCommand command)
+    {
+        // We need to extract the message from the command. since we only have one option and it's required, we can just use the first option.
+        var message = (string)command.Data.Options.First().Value;
+
+        var decrypted = DecryptFromBabelTEST(message);
+
+        var embedBuiler = new EmbedBuilder()
+            .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
+            .WithTitle(command.User.Username.ToString() + "has decrypted the following message:")
+            .WithDescription(decrypted)
+            .WithColor(Color.Green)
+            .WithCurrentTimestamp();
+
+        // Now, Let's respond with the embed.
+        await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+        //await command.RespondAsync(encrypted);
+    }
+
+
+    public string DecryptFromBabelTEST(string message)
+    {
+        string decrypted = "";
+
+        string pattern = @"\<(.*?)\>";
+        string[] split = System.Text.RegularExpressions.Regex.Split(message, pattern);
+
+        foreach (var sequence in split)
+        {
+
+            if (sequence.StartsWith(":babel"))
+            {
+                var character = AlphabetBabelDictionary.alphaBabelDictionary.FirstOrDefault(x => x.Value == sequence.Split(':')[1]).Key;
+                decrypted += character;
+            }
+
+            else
+            {
+                decrypted += sequence;
+            }
+
+        }
+
+        return decrypted;
     }
 
     public string DecryptFromBabel(string message)
