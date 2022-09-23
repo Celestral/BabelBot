@@ -17,8 +17,12 @@ public class Program
     private readonly ulong _WeAbove = 971028448569073664;
     private readonly ulong _AltariRole = 1001126450646237295;
 
+    private readonly ulong _ABC = 1012345287852965969;
+    private readonly ulong _ABCAltariRole = 1022837413351010455;
+
     private readonly ulong _BTS = 1021834513329946716;
     private readonly ulong _BTSAltariRole = 1022552879418060863;
+
     private readonly ulong _CTS = 1004490166288797768;
 
     DiscordSocketClient client;
@@ -138,10 +142,16 @@ public class Program
 
     private async Task DecryptMessageThroughButton(SocketMessageComponent component)
     {
-        var guild = client.GetGuild(_BTS);
-        var member = guild.Users.FirstOrDefault(x => x.Id == component.User.Id);
+        var BTSGuild = client.GetGuild(_BTS);
+        var BTSMember = BTSGuild.Users.FirstOrDefault(x => x.Id == component.User.Id);
 
-        if (member != null && member.Roles.FirstOrDefault(x => x.Id == _BTSAltariRole) != null)
+        var ABCGuild = client.GetGuild(_ABC);
+        var ABCMember = ABCGuild.Users.FirstOrDefault(x => x.Id == component.User.Id);
+
+        bool isAltariInBTS = BTSMember != null && BTSMember.Roles.FirstOrDefault(x => x.Id == _BTSAltariRole) != null;
+        bool isAltariInABC = ABCMember != null && ABCMember.Roles.FirstOrDefault(x => x.Id == _ABCAltariRole) != null;
+
+        if (isAltariInBTS || isAltariInABC)
         {
             var message = component.Message.Embeds.FirstOrDefault().Description;
 
@@ -195,7 +205,7 @@ public class Program
 
         var builder = new ComponentBuilder()
         .WithButton("Decrypt", "decrypt-button");
-
+        
         var embedBuiler = new EmbedBuilder()
             .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
             .WithTitle(command.User.Username.ToString() + " has left an encrypted message:")
@@ -204,7 +214,9 @@ public class Program
             .WithCurrentTimestamp();
 
         // Now, Let's respond with the embed.
-        await command.RespondAsync(embed: embedBuiler.Build(), components: builder.Build());
+        //await command.RespondAsync(embed: embedBuiler.Build(), components: builder.Build());
+        await command.RespondAsync("Your encrypted message has been sent", ephemeral:true);
+        await command.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
         //await command.RespondAsync(encrypted, components: builder.Build());
         //await command.RespondAsync(encrypted);
     }
@@ -218,7 +230,7 @@ public class Program
 
         var embedBuiler = new EmbedBuilder()
             .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
-            .WithTitle(command.User.Username.ToString() + "has decrypted the following message:")
+            .WithTitle(command.User.Username.ToString() + " has decrypted the following message:")
             .WithDescription(decrypted)
             .WithColor(Color.Green)
             .WithCurrentTimestamp();
@@ -237,7 +249,7 @@ public class Program
 
         var embedBuiler = new EmbedBuilder()
             .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
-            .WithTitle(command.User.Username.ToString() + "has decrypted the following message:")
+            .WithTitle(command.User.Username.ToString() + " has decrypted the following message:")
             .WithDescription(decrypted)
             .WithColor(Color.Green)
             .WithCurrentTimestamp();
