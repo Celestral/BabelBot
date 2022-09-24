@@ -1,75 +1,28 @@
 ﻿using BabelBot;
 using Discord;
-using Discord.Commands;
-using Discord.Interactions;
 using Discord.Net;
 using Discord.WebSocket;
-using Discord.Webhook;
-using Discord.Rest;
-using Discord.API;
-using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System.Text;
 using System.Globalization;
 
 public class Program
 {
+    // WeAbove Guild ID and Altari role ID
     private readonly ulong _WeAbove = 971028448569073664;
     private readonly ulong _AltariRole = 1001126450646237295;
 
-    private readonly ulong _ABC = 1012345287852965969;
-    private readonly ulong _ABCAltariRole = 1022837413351010455;
-
-    private readonly ulong _BTS = 1021834513329946716;
-    private readonly ulong _BTSAltariRole = 1022552879418060863;
-
-    private readonly ulong _CTS = 1004490166288797768;
+    private const bool _ALTARIREQUIRED = true;
 
     DiscordSocketClient client;
 
-    public Program()
-    {
-        //_serviceProvider = CreateProvider();
-    }
-
     static void Main(string[] args) => new Program().RunAsync(args).GetAwaiter().GetResult();
-
-    static IServiceProvider CreateProvider()
-    {
-
-        var config = new DiscordSocketConfig()
-        {
-            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers | GatewayIntents.GuildPresences
-        };
-
-        var xConfig = new InteractionServiceConfig()
-        {
-
-        };
-
-        var cConfig = new CommandServiceConfig()
-        {
-
-        };
-
-        var collection = new ServiceCollection()
-            .AddSingleton(config)
-            .AddSingleton<DiscordSocketClient>()
-            .AddSingleton(xConfig)
-            .AddSingleton<InteractionService>()
-            .AddSingleton(cConfig)
-            .AddSingleton<CommandService>();
-
-
-
-        return collection.BuildServiceProvider();
-    }
 
     async Task RunAsync(string[] args)
     {
         var config = new DiscordSocketConfig()
         {
-            GatewayIntents = GatewayIntents.All
+            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildPresences
         };
 
         client = new DiscordSocketClient(config);
@@ -95,9 +48,6 @@ public class Program
     public async Task Client_Ready()
     {
         AlphabetBabelDictionary.FillDictionary();
-        // CTS guildId
-        ulong guildId = 1004490166288797768;
-        var guild = client.GetGuild(guildId);
 
         var encryptCommand = new SlashCommandBuilder()
         .WithName("encrypt")
@@ -109,74 +59,15 @@ public class Program
         .WithDescription("Decrypt a message to the roman alphabet")
         .AddOption("message", ApplicationCommandOptionType.String, "The message you want to decrypt", isRequired: true);
 
-        var decryptTestCommand = new SlashCommandBuilder()
-        .WithName("decrypttestcommand")
-        .WithDescription("Decrypt a message to the roman alphabet")
-        .AddOption("message", ApplicationCommandOptionType.String, "The message you want to decrypt", isRequired: true);
-
-
         try
         {
             await client.CreateGlobalApplicationCommandAsync(encryptCommand.Build());
             await client.CreateGlobalApplicationCommandAsync(decryptCommand.Build());
-            await client.CreateGlobalApplicationCommandAsync(decryptTestCommand.Build());
         }
-        catch(ApplicationCommandException e)
+        catch (ApplicationCommandException e)
         {
             var json = JsonConvert.SerializeObject(e.Errors, Formatting.Indented);
             Console.WriteLine(json);
-        }
-    }
-
-    public async Task ButtonHandler(SocketMessageComponent component)
-    {
-        // We can now check for our custom id
-        switch (component.Data.CustomId)
-        {
-            case "decrypt-button":
-                // Lets respond by sending a message saying they clicked the button
-                await DecryptMessageThroughButton(component);
-                break;
-        }
-    }
-
-    private async Task DecryptMessageThroughButton(SocketMessageComponent component)
-    {
-        var BTSGuild = client.GetGuild(_BTS);
-        var BTSMember = BTSGuild.Users.FirstOrDefault(x => x.Id == component.User.Id);
-
-        var ABCGuild = client.GetGuild(_ABC);
-        var ABCMember = ABCGuild.Users.FirstOrDefault(x => x.Id == component.User.Id);
-
-        bool isAltariInBTS = BTSMember != null && BTSMember.Roles.FirstOrDefault(x => x.Id == _BTSAltariRole) != null;
-        bool isAltariInABC = ABCMember != null && ABCMember.Roles.FirstOrDefault(x => x.Id == _ABCAltariRole) != null;
-
-        if (isAltariInBTS || isAltariInABC)
-        {
-            var message = component.Message.Embeds.FirstOrDefault().Description;
-
-            var decrypted = DecryptFromBabel(message);
-
-            var embedBuiler = new EmbedBuilder()
-                .WithTitle("You decrypted the following message:")
-                .WithDescription(decrypted)
-                .WithColor(Color.Green)
-                .WithCurrentTimestamp();
-
-            // Now, Let's respond with the embed.
-            await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
-            //await command.RespondAsync(encrypted);
-        }
-
-        else
-        {
-            var embedBuiler = new EmbedBuilder()
-                .WithTitle("You cannot currently decrypt this message.")
-                .WithDescription("Only Altari can auto-decrypt Babel script")
-                .WithColor(Color.Green)
-                .WithCurrentTimestamp();
-
-            await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
         }
     }
 
@@ -190,15 +81,28 @@ public class Program
             case "decrypt":
                 await DecryptMessage(command);
                 break;
-            case "decrypttestcommand":
-                await DecryptTestMessage(command);
+        }
+    }
+
+    public async Task ButtonHandler(SocketMessageComponent component)
+    {
+        switch (component.Data.CustomId)
+        {
+            case "decrypt-button":
+                await DecryptMessageThroughButton(component);
                 break;
         }
     }
 
+    #region Command Implementations
+
+    /// <summary>
+    /// The command to Encrypt a Babel message
+    /// </summary>
+    /// <param name="command">The slash command to encrypt a message, including the message as the first (and only) parameter</param>
+    /// <returns>An embed containing the encrypted message with the original User as author</returns>
     private async Task EncryptMessage(SocketSlashCommand command)
     {
-        // We need to extract the message from the command. since we only have one option and it's required, we can just use the first option.
         var message = (string)command.Data.Options.First().Value;
 
         var encrypted = EncryptToBabel(message);
@@ -213,17 +117,18 @@ public class Program
             .WithColor(Color.Green)
             .WithCurrentTimestamp();
 
-        // Now, Let's respond with the embed.
-        //await command.RespondAsync(embed: embedBuiler.Build(), components: builder.Build());
+        // Sends an ephemeral response first, then sends a new message to the channel, this is to prevent the original command from showing, together with the plaintext string that was encrypted.
         await command.RespondAsync("Your encrypted message has been sent", ephemeral:true);
         await command.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
-        //await command.RespondAsync(encrypted, components: builder.Build());
-        //await command.RespondAsync(encrypted);
     }
 
+    /// <summary>
+    /// The command to Decrypt a Babel message
+    /// </summary>
+    /// <param name="command">The slash command to decrypt a message, including the message as the first (and only) parameter</param>
+    /// <returns>An embed containing the decrypted message with the original User as author</returns>
     private async Task DecryptMessage(SocketSlashCommand command)
     {
-        // We need to extract the message from the command. since we only have one option and it's required, we can just use the first option.
         var message = (string)command.Data.Options.First().Value;
 
         var decrypted = DecryptFromBabel(message);
@@ -235,84 +140,78 @@ public class Program
             .WithColor(Color.Green)
             .WithCurrentTimestamp();
 
-        // Now, Let's respond with the embed.
         await command.RespondAsync(embed: embedBuiler.Build());
-        //await command.RespondAsync(encrypted);
     }
 
-    private async Task DecryptTestMessage(SocketSlashCommand command)
+    /// <summary>
+    /// Decrypts a message after pushing the "Decrypt" button underneath an Encrypted embed
+    /// </summary>
+    /// <param name="component">The button that was pressed</param>
+    /// <returns>An ephemeral embed with the decrypted message OR an embed saying you can't decrypt the message depending on guild and role</returns>
+    private async Task DecryptMessageThroughButton(SocketMessageComponent component)
     {
-        // We need to extract the message from the command. since we only have one option and it's required, we can just use the first option.
-        var message = (string)command.Data.Options.First().Value;
-
-        var decrypted = DecryptFromBabelTEST(message);
-
-        var embedBuiler = new EmbedBuilder()
-            .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
-            .WithTitle(command.User.Username.ToString() + " has decrypted the following message:")
-            .WithDescription(decrypted)
-            .WithColor(Color.Green)
-            .WithCurrentTimestamp();
-
-        // Now, Let's respond with the embed.
-        await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
-        //await command.RespondAsync(encrypted);
-    }
-
-
-    public string DecryptFromBabelTEST(string message)
-    {
-        string decrypted = "";
-
-        string pattern = @"\<(.*?)\>";
-        string[] split = System.Text.RegularExpressions.Regex.Split(message, pattern);
-
-        foreach (var sequence in split)
+        /// IF the button was activated in the WeAbove server and the Altari role is required
+        /// We check whether someone is Altari and then give them the decrypted message ephemerally if so, and otherwise a message that they can not decrypt.
+        if (component.GuildId == _WeAbove && _ALTARIREQUIRED)
         {
+            var member = client.GetGuild(_WeAbove).Users.FirstOrDefault(x => x.Id == component.User.Id);
 
-            if (sequence.StartsWith(":babel"))
+            bool isAltari = member.Roles.FirstOrDefault(x => x.Id == _AltariRole) != null;
+
+            if (isAltari)
             {
-                var character = AlphabetBabelDictionary.alphaBabelDictionary.FirstOrDefault(x => x.Value == sequence.Split(':')[1]).Key;
-                decrypted += character;
+                var message = component.Message.Embeds.FirstOrDefault().Description;
+
+                var decrypted = DecryptFromBabel(message);
+
+                var embedBuiler = new EmbedBuilder()
+                    .WithTitle("You decrypted the following message:")
+                    .WithDescription(decrypted)
+                    .WithColor(Color.Green)
+                    .WithCurrentTimestamp();
+
+                await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
             }
 
             else
             {
-                decrypted += sequence;
-            }
+                var embedBuiler = new EmbedBuilder()
+                    .WithTitle("You cannot currently decrypt this message.")
+                    .WithDescription("Only Altari can auto-decrypt Babel script")
+                    .WithColor(Color.Green)
+                    .WithCurrentTimestamp();
 
+                await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+            }
         }
 
-        return decrypted;
-    }
-
-    public string DecryptFromBabel(string message)
-    {
-        string decrypted = "";
-
-        string pattern = @"\<(.*?)\>";
-        string[] split = System.Text.RegularExpressions.Regex.Split(message, pattern);
-
-        foreach (var sequence in split)
+        /// If the button was activated in any other server or in DMs we don't check for Altari role
+        else
         {
+            var message = component.Message.Embeds.FirstOrDefault().Description;
 
-            if (sequence.StartsWith(":babel"))
-            {
-                var character = AlphabetBabelDictionary.alphaBabelDictionary.FirstOrDefault(x => x.Value == sequence.Split(':')[1]).Key;
-                decrypted += character;
-            }
+            var decrypted = DecryptFromBabel(message);
 
-            else
-            {
-                decrypted += sequence;
-            }
+            var embedBuiler = new EmbedBuilder()
+                .WithTitle("You decrypted the following message:")
+                .WithDescription(decrypted)
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
 
+            await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
         }
-
-        return decrypted;
     }
 
+    #endregion
 
+    #region Helper methods
+
+    /// <summary>
+    /// Encrypts a message to Babel
+    /// Characters that don't have a Babel equivalent are kept in plaintext
+    /// </summary>
+    /// <param name="message">The message to encrypt</param>
+    /// <returns>The encrypted Babel message in emoji</returns>
     public string EncryptToBabel(string message)
     {
         string encrypted = "";
@@ -342,6 +241,43 @@ public class Program
         return encrypted;
     }
 
+    /// <summary>
+    /// Decrypts Babel text back to Roman alphabet
+    /// </summary>
+    /// <param name="message">The encrypted Babel message</param>
+    /// <returns>The decrypted Roman alphabet message</returns>
+    public string DecryptFromBabel(string message)
+    {
+        string decrypted = "";
+
+        string pattern = @"\<(.*?)\>";
+        string[] split = System.Text.RegularExpressions.Regex.Split(message, pattern);
+
+        foreach (var sequence in split)
+        {
+
+            if (sequence.StartsWith(":babel"))
+            {
+                var character = AlphabetBabelDictionary.alphaBabelDictionary.FirstOrDefault(x => x.Value == sequence.Split(':')[1]).Key;
+                decrypted += character;
+            }
+
+            else
+            {
+                decrypted += sequence;
+            }
+
+        }
+
+        return decrypted;
+    }
+
+    /// <summary>
+    /// Removes all accents from letters (i.e 'á' 'à' 'ä' all become 'a')
+    /// This is necessary because there currently no Babel equivalents of diacritics
+    /// </summary>
+    /// <param name="message">The unencrypted input message</param>
+    /// <returns>The unencrypted input message without diacritics</returns>
     public string RemoveDiacritics(string message)
     {
         var normalizedString = message.Normalize(NormalizationForm.FormD);
@@ -361,4 +297,6 @@ public class Program
             .ToString()
             .Normalize(NormalizationForm.FormC);
     }
+
+    #endregion
 }
