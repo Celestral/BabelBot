@@ -217,9 +217,24 @@ public class Program
         string encrypted = "";
         message = message.ToLower();
         message = RemoveDiacritics(message);
+        bool inEmote = false;
 
         foreach (char character in message.ToLower())
         {
+            if (character == '<')
+            {
+                inEmote = true;
+                continue;
+            }
+            if (character == '>')
+            {
+                inEmote = false;
+                continue;
+            }
+            if (inEmote)
+            {
+                continue;
+            }
             string babel = "";
             AlphabetBabelDictionary.alphaBabelDictionary.TryGetValue(character, out babel);
 
