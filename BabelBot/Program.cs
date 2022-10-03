@@ -11,6 +11,10 @@ public class Program
     // WeAbove Guild ID and Altari role ID
     private readonly ulong _WeAbove = 971028448569073664;
     private readonly ulong _AltariRole = 1001126450646237295;
+    private readonly ulong _ArchivistRole = 976832938190729226;
+
+    private readonly ulong _HackerRole = 1004530490532974743;
+    private readonly ulong _SysopRole = 1004530601505861673;
 
     private const bool _ALTARIREQUIRED = true;
 
@@ -126,7 +130,7 @@ public class Program
     /// The command to Decrypt a Babel message
     /// </summary>
     /// <param name="command">The slash command to decrypt a message, including the message as the first (and only) parameter</param>
-    /// <returns>An embed containing the decrypted message with the original User as author</returns>
+    /// <returns>An ephemeral embed containing the decrypted message/returns>
     private async Task DecryptMessage(SocketSlashCommand command)
     {
         var message = (string)command.Data.Options.First().Value;
@@ -134,13 +138,12 @@ public class Program
         var decrypted = DecryptFromBabel(message);
 
         var embedBuiler = new EmbedBuilder()
-            .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
-            .WithTitle(command.User.Username.ToString() + " has decrypted the following message:")
+            .WithTitle("You decrypted the following message:")
             .WithDescription(decrypted)
             .WithColor(Color.Green)
             .WithCurrentTimestamp();
 
-        await command.RespondAsync(embed: embedBuiler.Build());
+        await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
     }
 
     /// <summary>
@@ -156,7 +159,7 @@ public class Program
         {
             var member = client.GetGuild(_WeAbove).Users.FirstOrDefault(x => x.Id == component.User.Id);
 
-            bool isAltari = member.Roles.FirstOrDefault(x => x.Id == _AltariRole) != null;
+            bool isAltari = member.Roles.FirstOrDefault(x => x.Id == _AltariRole || x.Id == _ArchivistRole) != null;
 
             if (isAltari)
             {
