@@ -1,0 +1,41 @@
+{
+	"server" : 
+	{
+		"name" : "BabelBot Test Server",
+		"guildId" : 1021834513329946716,
+		"limitEncryption" : true,
+		"limitDecryption" : true,
+		"limitButtonDecryption" : true
+	},
+	"roles": 
+	[
+		{
+			"name" : "Altari", 
+			"id" : 1022552879418060863,
+			"canEncrypt" : true,
+			"canDecrypt" : true,
+			"canButtonDecrypt": true
+		},
+		{
+			"name" : "Encryptor", 
+			"id" : 1026602207094788136,
+			"canEncrypt" : true,
+			"canDecrypt" : false,
+			"canButtonDecrypt": false
+		},
+		{
+			"name" : "Decryptor", 
+			"id" : 1026602312350830675,
+			"canEncrypt" : false,
+			"canDecrypt" : true,
+			"canButtonDecrypt": false
+		},
+		{
+			"name" : "Button", 
+			"id" : 1026602345934622760,
+			"canEncrypt" : false,
+			"canDecrypt" : false,
+			"canButtonDecrypt": true
+		}
+	]
+}
