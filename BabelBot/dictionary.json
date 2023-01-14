@@ -1,0 +1,141 @@
+{
+	"Pairings": 
+	[
+		{
+			"Character" : "a", 
+			"EmoteName" : "babel1",
+		},
+		{
+			"Character" : "b", 
+			"EmoteName" : "babel2",
+		},
+		{
+			"Character" : "c", 
+			"EmoteName" : "babel3",
+		},
+		{
+			"Character" : "d", 
+			"EmoteName" : "babel4",
+		},
+		{
+			"Character" : "e", 
+			"EmoteName" : "babel5",
+		},
+		{
+			"Character" : "f", 
+			"EmoteName" : "babel6",
+		},
+		{
+			"Character" : "g", 
+			"EmoteName" : "babel7",
+		},
+		{
+			"Character" : "h", 
+			"EmoteName" : "babel8",
+		},
+		{
+			"Character" : "i", 
+			"EmoteName" : "babel9",
+		},
+		{
+			"Character" : "j", 
+			"EmoteName" : "babel10",
+		},
+		{
+			"Character" : "k", 
+			"EmoteName" : "babel11",
+		},
+		{
+			"Character" : "l", 
+			"EmoteName" : "babel12",
+		},
+		{
+			"Character" : "m", 
+			"EmoteName" : "babel13",
+		},
+		{
+			"Character" : "n", 
+			"EmoteName" : "babel14",
+		},
+		{
+			"Character" : "o", 
+			"EmoteName" : "babel15",
+		},
+		{
+			"Character" : "p", 
+			"EmoteName" : "babel16",
+		},
+		{
+			"Character" : "q", 
+			"EmoteName" : "babel17",
+		},
+		{
+			"Character" : "r", 
+			"EmoteName" : "babel18",
+		},
+		{
+			"Character" : "s", 
+			"EmoteName" : "babel19",
+		},
+		{
+			"Character" : "t", 
+			"EmoteName" : "babel20",
+		},
+		{
+			"Character" : "u", 
+			"EmoteName" : "babel21",
+		},
+		{
+			"Character" : "v", 
+			"EmoteName" : "babel22",
+		},
+		{
+			"Character" : "w", 
+			"EmoteName" : "babel23",
+		},
+		{
+			"Character" : "x", 
+			"EmoteName" : "babel24",
+		},
+		{
+			"Character" : "y", 
+			"EmoteName" : "babel25",
+		},
+		{
+			"Character" : "z", 
+			"EmoteName" : "babel26",
+		},
+		{
+			"Character" : ",", 
+			"EmoteName" : "babel27",
+		},
+		{
+			"Character" : "?", 
+			"EmoteName" : "babel28",
+		},
+		{
+			"Character" : ";", 
+			"EmoteName" : "babel29",
+		},
+		{
+			"Character" : ".", 
+			"EmoteName" : "babel30",
+		},
+		{
+			"Character" : ":", 
+			"EmoteName" : "babel31",
+		},
+		{
+			"Character" : "!", 
+			"EmoteName" : "babel32",
+		},
+		{
+			"Character" : "\"", 
+			"EmoteName" : "babel33",
+		},
+		{
+			"Character" : "'", 
+			"EmoteName" : "babel34",
+		}
+	]
+}

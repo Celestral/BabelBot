@@ -60,16 +60,6 @@ public class Program
         AlphabetBabelDictionary.FillDictionary();
         var config = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
 
-        /*var encryptCommand = new SlashCommandBuilder()
-        .WithName("encrypt")
-        .WithDescription("Encrypt a message to Babel script")
-        .AddOption("message", ApplicationCommandOptionType.String, "The message you want to encrypt", isRequired: true);
-
-        var decryptCommand = new SlashCommandBuilder()
-        .WithName("decrypt")
-        .WithDescription("Decrypt a message to the roman alphabet")
-        .AddOption("message", ApplicationCommandOptionType.String, "The message you want to decrypt", isRequired: true);*/
-
         try
         {
             _interactionService = new InteractionService(_client);

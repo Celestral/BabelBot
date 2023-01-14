@@ -16,6 +16,7 @@ namespace BabelBot
         private DiscordSocketClient _client;
         private static SocketGuild _guild;
         private static Config _config;
+        private static BabelDictionary _dict;
 
         /// <summary>
         /// Reads config file during startup
@@ -24,6 +25,7 @@ namespace BabelBot
         public BabelTranslationCommandModule(DiscordSocketClient client)
         {
             _config = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
+            _dict = JsonConvert.DeserializeObject<BabelDictionary>(File.ReadAllText("dictionary.json"));
 
             _client = client;
             _guild = _client.GetGuild(_config.Server.GuildID);
@@ -131,7 +133,7 @@ namespace BabelBot
         /// </summary>
         /// <param name="command">The slash command to decrypt a message, including the message as the first (and only) parameter</param>
         /// <returns>An ephemeral embed with the decrypted message OR an embed saying you can't decrypt the message depending on guild and role/returns>
-        [SlashCommand("decrypt", "Decrypt a message from Babel script")]
+        [SlashCommand("decrypt", "Decrypt a message to the roman alphabet")]
         private async Task DecryptMessage(string message)
         {
             var command = Context.Interaction;
@@ -334,7 +336,11 @@ namespace BabelBot
                     continue;
                 }
                 string babel = "";
-                AlphabetBabelDictionary.alphaBabelDictionary.TryGetValue(character, out babel);
+                var tryGet = _dict.Pairings.FirstOrDefault(x => x.Character == character);
+                if (tryGet != null)
+                {
+                    babel = tryGet.EmoteName;
+                }
 
                 if (!string.IsNullOrEmpty(babel))
                 {
@@ -354,8 +360,6 @@ namespace BabelBot
             return encrypted;
         }
 
-
-
         /// <summary>
         /// Decrypts Babel text back to Roman alphabet
         /// </summary>
@@ -373,7 +377,7 @@ namespace BabelBot
 
                 if (sequence.StartsWith(":babel"))
                 {
-                    var character = AlphabetBabelDictionary.alphaBabelDictionary.FirstOrDefault(x => x.Value == sequence.Split(':')[1]).Key;
+                    var character = _dict.Pairings.FirstOrDefault(x => x.EmoteName == sequence.Split(':')[1]).Character;
                     decrypted += character;
                 }
 
