@@ -57,7 +57,6 @@ public class Program
 
     public async Task Client_Ready()
     {
-        AlphabetBabelDictionary.FillDictionary();
         var config = JsonConvert.DeserializeObject<Config>(File.ReadAllText("config.json"));
 
         try

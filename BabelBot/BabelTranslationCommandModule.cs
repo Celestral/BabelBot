@@ -6,11 +6,14 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace BabelBot
 {
+    public enum ePermissionType {Encryption, Decryption, ButtonDecryption};
+
     public class BabelTranslationCommandModule : InteractionModuleBase<SocketInteractionContext>
     {
         private DiscordSocketClient _client;
@@ -41,92 +44,33 @@ namespace BabelBot
         [SlashCommand("encrypt", "Encrypt a message to Babel script")]
         private async Task EncryptMessage(string message)
         {
-            var command = Context.Interaction;
-            /// IF decrypt was called in the WeAbove server and decrypting is limited to certain roles
-            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not decrypt.
-            if (command.GuildId == _config.Server.GuildID && _config.Server.LimitButtonDecryption)
+            var interaction = Context.Interaction;
+            /// IF encrypt was called in the WeAbove server and encrypting is limited to certain roles
+            /// we check whether someone has an allowed role and then post the encrypted message, and otherwise a message that they can not use encryption.
+            if (interaction.GuildId == _config.Server.GuildID && _config.Server.LimitEncryption)
             {
-                var member = _client.GetGuild(_config.Server.GuildID).Users.FirstOrDefault(x => x.Id == command.User.Id);
-                bool hasRolePermission = false;
+                bool hasRolePermissions = CheckPermissions(interaction, ePermissionType.Encryption);
 
-                foreach (var role in _config.Roles.Where(x => x.CanEncrypt))
+                if (hasRolePermissions)
                 {
-                    if (member.Roles.FirstOrDefault(x => x.Id == role.ID) != null)
-                    {
-                        hasRolePermission = true;
-                        break;
-                    }
-                }
-
-                if (hasRolePermission)
-                {
-                    var encrypted = EncryptToBabel(message);
-
-                    var builder = new ComponentBuilder()
-                    .WithButton("Decrypt", "decrypt-button");
-
-                    var embedBuiler = new EmbedBuilder()
-                        .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
-                        .WithTitle(command.User.Username.ToString() + " has left an encrypted message:")
-                        .WithDescription(encrypted)
-                        .WithColor(Color.Green)
-                        .WithCurrentTimestamp();
-
-                    // Sends an ephemeral response first, then sends a new message to the channel, this is to prevent the original command from showing, together with the plaintext string that was encrypted.
-                    await command.RespondAsync("Your encrypted message has been sent", ephemeral: true);
-                    await command.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
+                    await interaction.RespondAsync("Encrypting your message...", ephemeral: true);
+                    await Task.Run(()=> SendEncryptedMessage(interaction, message));
                 }
 
                 else
                 {
-                    List<Role> allowedRoles = _config.Roles.Where(x => x.CanEncrypt).ToList();
-                    string allowedRolesString = "";
-                    for (int i = 0; i < allowedRoles.Count(); i++)
-                    {
-                        if (i == 0)
-                        {
-                            allowedRolesString += _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                        else if (i == allowedRoles.Count - 1)
-                        {
-                            allowedRolesString += " and " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                        else
-                        {
-                            allowedRolesString += ", " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                    }
-
-                    var embedBuiler = new EmbedBuilder()
-                        .WithTitle("You cannot currently encrypt a message.")
-                        .WithDescription("Only " + allowedRolesString + " can encrypt to Babel script")
-                        .WithColor(Color.Green)
-                        .WithCurrentTimestamp();
-
-                    await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                    await DeferAsync();
+                    await Task.Run(()=> SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.Encryption));                   
                 }
             }
             else
             {
-                var encrypted = EncryptToBabel(message);
-
-                var builder = new ComponentBuilder()
-                .WithButton("Decrypt", "decrypt-button");
-
-                var embedBuiler = new EmbedBuilder()
-                    .WithAuthor(command.User.Username.ToString(), command.User.GetAvatarUrl() ?? command.User.GetDefaultAvatarUrl())
-                    .WithTitle(command.User.Username.ToString() + " has left an encrypted message:")
-                    .WithDescription(encrypted)
-                    .WithColor(Color.Green)
-                    .WithCurrentTimestamp();
-
-                // Sends an ephemeral response first, then sends a new message to the channel, this is to prevent the original command from showing, together with the plaintext string that was encrypted.
-                await command.RespondAsync("Your encrypted message has been sent", ephemeral: true);
-                await command.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
+                await interaction.RespondAsync("Encrypting your message...", ephemeral: true);
+                await Task.Run(() => SendEncryptedMessage(interaction, message));
             }
 
-
-        }
+        } 
+      
 
         /// <summary>
         /// The command to Decrypt a Babel message
@@ -136,78 +80,31 @@ namespace BabelBot
         [SlashCommand("decrypt", "Decrypt a message to the roman alphabet")]
         private async Task DecryptMessage(string message)
         {
-            var command = Context.Interaction;
+            var interaction = Context.Interaction;
             /// IF decrypt was called in the WeAbove server and decrypting is limited to certain roles
-            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not decrypt.
-            if (command.GuildId == _config.Server.GuildID && _config.Server.LimitButtonDecryption)
+            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not use decryption.
+            if (interaction.GuildId == _config.Server.GuildID && _config.Server.LimitDecryption)
             {
-                var member = _client.GetGuild(_config.Server.GuildID).Users.FirstOrDefault(x => x.Id == command.User.Id);
-                bool hasRolePermission = false;
+                bool hasRolePermissions = CheckPermissions(Context.Interaction, ePermissionType.Decryption);
 
-                foreach (var role in _config.Roles.Where(x => x.CanDecrypt))
+                if (hasRolePermissions)
                 {
-                    if (member.Roles.FirstOrDefault(x => x.Id == role.ID) != null)
-                    {
-                        hasRolePermission = true;
-                        break;
-                    }
-                }
-
-                if (hasRolePermission)
-                {
-                    var decrypted = DecryptFromBabel(message);
-
-                    var embedBuiler = new EmbedBuilder()
-                        .WithTitle("You decrypted the following message:")
-                        .WithDescription(decrypted)
-                        .WithColor(Color.Green)
-                        .WithCurrentTimestamp();
-
-                    await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                    await interaction.RespondAsync("Decrypting message...", ephemeral: true);
+                    await Task.Run(() => SendDecryptedMessage(interaction, message, true));
                 }
 
                 else
                 {
-                    List<Role> allowedRoles = _config.Roles.Where(x => x.CanDecrypt).ToList();
-                    string allowedRolesString = "";
-                    for (int i = 0; i < allowedRoles.Count(); i++)
-                    {
-                        if (i == 0)
-                        {
-                            allowedRolesString += _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                        else if (i == allowedRoles.Count - 1)
-                        {
-                            allowedRolesString += " and " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                        else
-                        {
-                            allowedRolesString += ", " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                    }
-
-                    var embedBuiler = new EmbedBuilder()
-                        .WithTitle("You cannot currently decrypt this message.")
-                        .WithDescription("Only " + allowedRolesString + " can decrypt Babel script")
-                        .WithColor(Color.Green)
-                        .WithCurrentTimestamp();
-
-                    await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                    await DeferAsync();
+                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.Decryption));
                 }
             }
 
             /// If decrypt was called in any other server or in DMs we don't check for Altari role
             else
             {
-                var decrypted = DecryptFromBabel(message);
-
-                var embedBuiler = new EmbedBuilder()
-                    .WithTitle("You decrypted the following message:")
-                    .WithDescription(decrypted)
-                    .WithColor(Color.Green)
-                    .WithCurrentTimestamp();
-
-                await command.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                await interaction.RespondAsync("Decrypting message...", ephemeral: true);
+                await Task.Run(() => SendDecryptedMessage(interaction, message, true));
             }
         }
 
@@ -223,88 +120,153 @@ namespace BabelBot
         [ComponentInteraction("decrypt-button")]
         private async Task DecryptMessageThroughButton()
         {
-            var component = (SocketMessageComponent)Context.Interaction;
+            var interaction = (SocketMessageComponent)Context.Interaction;
             /// IF the button was activated in the WeAbove server and decrypting through button is limited to certain roles
-            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not decrypt.
-            if (component.GuildId == _config.Server.GuildID && _config.Server.LimitButtonDecryption)
+            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not use button decryption.
+            if (interaction.GuildId == _config.Server.GuildID && _config.Server.LimitButtonDecryption)
             {
-                var member = _client.GetGuild(_config.Server.GuildID).Users.FirstOrDefault(x => x.Id == component.User.Id);
-                bool hasRolePermission = false;
+                bool hasRolePermissions = CheckPermissions(Context.Interaction, ePermissionType.ButtonDecryption);
 
-                foreach (var role in _config.Roles.Where(x => x.CanButtonDecrypt))
+                if (hasRolePermissions)
                 {
-                    if (member.Roles.FirstOrDefault(x => x.Id == role.ID) != null)
-                    {
-                        hasRolePermission = true;
-                        break;
-                    }
-                }
+                    var message = interaction.Message.Embeds.FirstOrDefault().Description;
 
-                if (hasRolePermission)
-                {
-                    var message = component.Message.Embeds.FirstOrDefault().Description;
-
-                    var decrypted = DecryptFromBabel(message);
-
-                    var embedBuiler = new EmbedBuilder()
-                        .WithTitle("You decrypted the following message:")
-                        .WithDescription(decrypted)
-                        .WithColor(Color.Green)
-                        .WithCurrentTimestamp();
-
-                    await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                    await interaction.RespondAsync("Decrypting message...", ephemeral: true);
+                    await Task.Run(() => SendDecryptedMessage(interaction, message, true));
                 }
 
                 else
                 {
-                    List<Role> allowedRoles = _config.Roles.Where(x => x.CanButtonDecrypt).ToList();
-                    string allowedRolesString = "";
-                    for (int i = 0; i < allowedRoles.Count(); i++)
-                    {
-                        if (i == 0)
-                        {
-                            allowedRolesString += _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                        else if (i == allowedRoles.Count - 1)
-                        {
-                            allowedRolesString += " and " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                        else
-                        {
-                            allowedRolesString += ", " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
-                        }
-                    }
-
-                    var embedBuiler = new EmbedBuilder()
-                        .WithTitle("You cannot currently decrypt this message.")
-                        .WithDescription("Only " + allowedRolesString + " can auto-decrypt Babel script")
-                        .WithColor(Color.Green)
-                        .WithCurrentTimestamp();
-
-                    await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                    await DeferAsync();
+                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.ButtonDecryption));
                 }
             }
 
             /// If the button was activated in any other server or in DMs we don't check for Altari role
             else
             {
-                var message = component.Message.Embeds.FirstOrDefault().Description;
+                var message = interaction.Message.Embeds.FirstOrDefault().Description;
 
-                var decrypted = DecryptFromBabel(message);
-
-                var embedBuiler = new EmbedBuilder()
-                    .WithTitle("You decrypted the following message:")
-                    .WithDescription(decrypted)
-                    .WithColor(Color.Green)
-                    .WithCurrentTimestamp();
-
-                await component.RespondAsync(embed: embedBuiler.Build(), ephemeral: true);
+                await interaction.RespondAsync("Decrypting message...", ephemeral: true);
+                await Task.Run(() => SendDecryptedMessage(interaction, message, true));
             }
         }
 
         #endregion
 
         #region Helper methods
+
+        private PropertyInfo GetPermissionProperty(ePermissionType permissionType)
+        {
+            switch (permissionType)
+            {
+                case ePermissionType.Encryption:
+                    return typeof(Role).GetProperty("CanEncrypt");
+                    break;
+                case ePermissionType.Decryption:
+                    return typeof(Role).GetProperty("CanDecrypt");
+                    break;
+                case ePermissionType.ButtonDecryption:
+                    return typeof(Role).GetProperty("CanButtonDecrypt");
+                    break;
+                default:
+                    return null;
+                    break;
+            }
+        }
+
+        private bool CheckPermissions(SocketInteraction interaction, ePermissionType permissionType)
+        {
+            PropertyInfo permissionProperty = GetPermissionProperty(permissionType);
+
+            var member = _client.GetGuild(_config.Server.GuildID).Users.FirstOrDefault(x => x.Id == interaction.User.Id);
+
+            foreach (var role in _config.Roles.Where(x => ((bool)permissionProperty.GetValue(x)) == true))
+            {
+                if (member.Roles.FirstOrDefault(x => x.Id == role.ID) != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private async Task SendInsufficientRolePermissionsErrorMessage(SocketInteraction interaction, ePermissionType permissionType)
+        {
+            PropertyInfo permissionProperty = GetPermissionProperty(permissionType);
+            string permissionActionString = "";
+            switch (permissionType)
+            {
+                case ePermissionType.Encryption:
+                    permissionActionString = "encrypt to Babel script";
+                    break;
+                case ePermissionType.Decryption:
+                    permissionActionString = "decrypt from Babel script";
+                    break;
+                case ePermissionType.ButtonDecryption:
+                    permissionActionString = "decrypt Babel script automatically";
+                    break;
+                default:
+                    break;
+            }
+
+            List<Role> allowedRoles = _config.Roles.Where(x => ((bool)permissionProperty.GetValue(x)) == true).ToList();
+            string allowedRolesString = "";
+            for (int i = 0; i < allowedRoles.Count(); i++)
+            {
+                if (i == 0)
+                {
+                    allowedRolesString += _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+                }
+                else if (i == allowedRoles.Count - 1)
+                {
+                    allowedRolesString += " and " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+                }
+                else
+                {
+                    allowedRolesString += ", " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+                }
+            }
+
+            var embedBuiler = new EmbedBuilder()
+                .WithTitle("You cannot currently " + permissionActionString)
+                .WithDescription("Only " + allowedRolesString + " can " + permissionActionString)
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            await interaction.FollowupAsync(embed: embedBuiler.Build(), ephemeral: true);
+        }
+
+        private async Task SendEncryptedMessage(SocketInteraction interaction, string message)
+        {
+            var encryptedMessage = EncryptToBabel(message);
+
+            var builder = new ComponentBuilder()
+            .WithButton("Decrypt", "decrypt-button");
+
+            var embedBuiler = new EmbedBuilder()
+                .WithAuthor(interaction.User.Username.ToString(), interaction.User.GetAvatarUrl() ?? interaction.User.GetDefaultAvatarUrl())
+                .WithTitle(interaction.User.Username.ToString() + " has left an encrypted message:")
+                .WithDescription(encryptedMessage)
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            await interaction.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
+        }
+
+        private async Task SendDecryptedMessage(SocketInteraction interaction, string message, bool isEphemeral)
+        {
+            var decrypted = DecryptFromBabel(message);
+
+            var embedBuiler = new EmbedBuilder()
+                .WithTitle("You decrypted the following message:")
+                .WithDescription(decrypted)
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            await interaction.FollowupAsync(embed: embedBuiler.Build(), ephemeral: isEphemeral);
+        }
 
         /// <summary>
         /// Encrypts a message to Babel
