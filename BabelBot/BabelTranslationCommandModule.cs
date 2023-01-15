@@ -132,7 +132,7 @@ namespace BabelBot
                 else
                 {
                     await DeferAsync(true);
-                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(Context.Interaction, ePermissionType.ButtonDecryption));
+                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.ButtonDecryption));
                 }
             }
 
