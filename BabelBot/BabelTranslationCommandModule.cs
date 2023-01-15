@@ -53,8 +53,8 @@ namespace BabelBot
 
                 else
                 {
-                    await DeferAsync();
-                    await Task.Run(()=> SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.Encryption));                   
+                    await DeferAsync(true);
+                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.Encryption));                   
                 }
             }
             else
@@ -89,7 +89,7 @@ namespace BabelBot
 
                 else
                 {
-                    await DeferAsync();
+                    await DeferAsync(true);
                     await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.Decryption));
                 }
             }
@@ -131,8 +131,8 @@ namespace BabelBot
 
                 else
                 {
-                    await DeferAsync();
-                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(interaction, ePermissionType.ButtonDecryption));
+                    await DeferAsync(true);
+                    await Task.Run(() => SendInsufficientRolePermissionsErrorMessage(Context.Interaction, ePermissionType.ButtonDecryption));
                 }
             }
 
@@ -219,19 +219,23 @@ namespace BabelBot
 
             List<Role> allowedRoles = _config.Roles.Where(x => ((bool)permissionProperty.GetValue(x)) == true).ToList();
             string allowedRolesString = "";
+            var configGuild = _client.GetGuild(_config.Server.GuildID);
+
             for (int i = 0; i < allowedRoles.Count(); i++)
             {
+                var roleName = configGuild.Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+
                 if (i == 0)
                 {
-                    allowedRolesString += _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+                    allowedRolesString += roleName;
                 }
                 else if (i == allowedRoles.Count - 1)
                 {
-                    allowedRolesString += " and " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+                    allowedRolesString += " and " + roleName;
                 }
                 else
                 {
-                    allowedRolesString += ", " + _client.GetGuild(_config.Server.GuildID).Roles.FirstOrDefault(x => x.Id == allowedRoles[i].ID).Name;
+                    allowedRolesString += ", " + roleName;
                 }
             }
 
