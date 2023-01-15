@@ -2,13 +2,9 @@
 using Discord.Interactions;
 using Discord.WebSocket;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace BabelBot
 {
@@ -22,7 +18,7 @@ namespace BabelBot
         private static BabelDictionary _dict;
 
         /// <summary>
-        /// Reads config file during startup
+        /// Reads config file and dictionary during startup
         /// </summary>
         /// <param name="client"></param>
         public BabelTranslationCommandModule(DiscordSocketClient client)
@@ -46,7 +42,7 @@ namespace BabelBot
         {
             var interaction = Context.Interaction;
             /// IF encrypt was called in the WeAbove server and encrypting is limited to certain roles
-            /// we check whether someone has an allowed role and then post the encrypted message, and otherwise a message that they can not use encryption.
+            /// we check whether someone has an allowed role and then post the encrypted message, and otherwise an ephemeral message that they can not use encryption.
             if (interaction.GuildId == _config.Server.GuildID && _config.Server.LimitEncryption)
             {
                 bool hasRolePermissions = CheckPermissions(interaction, ePermissionType.Encryption);
@@ -82,7 +78,7 @@ namespace BabelBot
         {
             var interaction = Context.Interaction;
             /// IF decrypt was called in the WeAbove server and decrypting is limited to certain roles
-            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not use decryption.
+            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise an ephemeral message that they can not use decryption.
             if (interaction.GuildId == _config.Server.GuildID && _config.Server.LimitDecryption)
             {
                 bool hasRolePermissions = CheckPermissions(Context.Interaction, ePermissionType.Decryption);
@@ -122,7 +118,7 @@ namespace BabelBot
         {
             var interaction = (SocketMessageComponent)Context.Interaction;
             /// IF the button was activated in the WeAbove server and decrypting through button is limited to certain roles
-            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise a message that they can not use button decryption.
+            /// we check whether someone has an allowed role and then give them the decrypted message ephemerally if so, and otherwise an ephemeral message that they can not use button decryption.
             if (interaction.GuildId == _config.Server.GuildID && _config.Server.LimitButtonDecryption)
             {
                 bool hasRolePermissions = CheckPermissions(Context.Interaction, ePermissionType.ButtonDecryption);
@@ -175,6 +171,12 @@ namespace BabelBot
             }
         }
 
+        /// <summary>
+        /// Check whether the user has the required role permissions
+        /// </summary>
+        /// <param name="interaction"></param>
+        /// <param name="permissionType">which permissions to check for</param>
+        /// <returns>true if they have permission, false otherwise</returns>
         private bool CheckPermissions(SocketInteraction interaction, ePermissionType permissionType)
         {
             PropertyInfo permissionProperty = GetPermissionProperty(permissionType);
@@ -192,6 +194,12 @@ namespace BabelBot
             return false;
         }
 
+        /// <summary>
+        /// Sends a message telling the user that they don't have the required roles for the action they're trying to do
+        /// </summary>
+        /// <param name="interaction"></param>
+        /// <param name="permissionType"></param>
+        /// <returns></returns>
         private async Task SendInsufficientRolePermissionsErrorMessage(SocketInteraction interaction, ePermissionType permissionType)
         {
             PropertyInfo permissionProperty = GetPermissionProperty(permissionType);
@@ -238,6 +246,12 @@ namespace BabelBot
             await interaction.FollowupAsync(embed: embedBuiler.Build(), ephemeral: true);
         }
 
+        /// <summary>
+        /// Encrypts and sends message to the channel the command was used in
+        /// </summary>
+        /// <param name="interaction"></param>
+        /// <param name="message">message to encrypt</param>
+        /// <returns></returns>
         private async Task SendEncryptedMessage(SocketInteraction interaction, string message)
         {
             var encryptedMessage = EncryptToBabel(message);
@@ -255,6 +269,13 @@ namespace BabelBot
             await interaction.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
         }
 
+        /// <summary>
+        /// Decrypts and sends message to the channel the command was used in
+        /// </summary>
+        /// <param name="interaction"></param>
+        /// <param name="message">The message to decrypt</param>
+        /// <param name="isEphemeral">Whether the message should only be visible to the user that did the command</param>
+        /// <returns></returns>
         private async Task SendDecryptedMessage(SocketInteraction interaction, string message, bool isEphemeral)
         {
             var decrypted = DecryptFromBabel(message);
