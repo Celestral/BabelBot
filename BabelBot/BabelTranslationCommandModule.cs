@@ -13,7 +13,6 @@ namespace BabelBot
     public class BabelTranslationCommandModule : InteractionModuleBase<SocketInteractionContext>
     {
         private DiscordSocketClient _client;
-        private static SocketGuild _guild;
         private static Config _config;
         private static BabelDictionary _dict;
 
@@ -27,7 +26,6 @@ namespace BabelBot
             _dict = JsonConvert.DeserializeObject<BabelDictionary>(File.ReadAllText("dictionary.json"));
 
             _client = client;
-            _guild = _client.GetGuild(_config.Server.GuildID);
         }
 
         #region Slash Commands
@@ -259,14 +257,29 @@ namespace BabelBot
             var builder = new ComponentBuilder()
             .WithButton("Decrypt", "decrypt-button");
 
-            var embedBuiler = new EmbedBuilder()
-                .WithAuthor(interaction.User.Username.ToString(), interaction.User.GetAvatarUrl() ?? interaction.User.GetDefaultAvatarUrl())
+            var embedBuilder = new EmbedBuilder()
                 .WithTitle(interaction.User.Username.ToString() + " has left an encrypted message:")
                 .WithDescription(encryptedMessage)
                 .WithColor(Color.Green)
                 .WithCurrentTimestamp();
 
-            await interaction.Channel.SendMessageAsync(embed: embedBuiler.Build(), components: builder.Build());
+            //Sets author avatar to server profile avatar if the user has one and the command was used inside a server.
+            if (interaction.GuildId != null)
+            {
+                var user = _client.GetGuild((ulong)interaction.GuildId).GetUser(interaction.User.Id);
+                embedBuilder.Author = new EmbedAuthorBuilder()
+                    .WithName(interaction.User.Username.ToString())
+                    .WithIconUrl(user.GetDisplayAvatarUrl() ?? user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl());
+            }
+            else
+            {
+                var user = interaction.User;
+                embedBuilder.Author = new EmbedAuthorBuilder()
+                    .WithName(interaction.User.Username.ToString())
+                    .WithIconUrl(user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl());
+            }
+
+            await interaction.Channel.SendMessageAsync(embed: embedBuilder.Build(), components: builder.Build());
         }
 
         /// <summary>
